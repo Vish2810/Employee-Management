@@ -4,7 +4,6 @@ from typing import Optional
 from loguru import logger
 from sqlalchemy.dialects.postgresql import psycopg2
 import psycopg2.extras
-import redis
 from . import get_db, get_raw_db
 from sqlalchemy.orm import Session
 from src.db.alchemy_models import employee_table
@@ -26,6 +25,7 @@ class CreateEmployee(BaseModel):
     designation: str
     email: str
     contact_no: str
+    o_id: int
 
 
 class ModifyEmployee(BaseModel):
@@ -36,19 +36,21 @@ class ModifyEmployee(BaseModel):
     contact_no: Optional[str]
 
 
-@router.get('/Employee/ViewEmployeeBy/{e_id}', tags=['View Employees'])
+@router.get('/Employee/ViewEmployeeByEid/{e_id}', tags=['View Employees'])
 def view_employee_by_eid(
         e_id: int,
         db: Session = Depends(get_db),
         rdb=Depends(get_raw_db)
 ):
     try:
+        res = db.query(employee_table).filter_by(e_id=e_id).all()
+        if len(res) == 0:
+            raise HTTPException(status_code=404, detail=f'{e_id} is not exist')
         cursor = rdb.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cursor.execute(f"""
            select * from employee  where e_id={e_id} ;
            """)
         return cursor.fetchall()
-
     except HTTPException as e:
         logger.debug(f'{e}')
         raise e
